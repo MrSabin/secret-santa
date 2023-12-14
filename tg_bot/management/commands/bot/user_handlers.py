@@ -39,27 +39,36 @@ class GameState(StatesGroup):
 @router.message(Command(commands=["start"]))
 async def start_command_handler(message: Message):
     User = await bot(GetMe())
-    referrer_candidate = ''
-    if " " in message.text:
-        referrer_candidate = message.text.split()[1]
-        # await bot.send_message(message.from_user.id, f'Вас приветствует Санта Бот 🎁🎄⛄\nВаш промо-код {referrer_candidate}', reply_markup=main_menu)
+    promo_candidate = ''
+    find_game = None
     user_id = await sync_to_async(UserSantaGame.objects.filter(telegram_id=int(message.from_user.id)).first)()
+    if " " in message.text:
+        promo_candidate = message.text.split()[1]
+        find_game = await sync_to_async(Game.objects.filter(promo_key=str(promo_candidate).upper()).first)()
+
     if not user_id:
-        user_id = UserSantaGame(telegram_id=int(message.from_user.id), first_name=message.from_user.first_name)
+        # если есть промо - находим игру и добавить к пользователю его игру
+        user_id = UserSantaGame(telegram_id=int(message.from_user.id), first_name=message.from_user.first_name, my_game=find_game)
         await sync_to_async(user_id.save)()
-        await bot.send_message(message.from_user.id, f'Привет 🎅{message.from_user.first_name}\nОрганизуй тайный обмен подарками, запусти праздничное настроение! 🎄', reply_markup=main_menu)
+        if not find_game:
+            await bot.send_message(message.from_user.id, f'Привет {message.from_user.first_name}, создай игру🎅\nОрганизуй тайный обмен подарками, запусти праздничное настроение! 🎄', reply_markup=main_menu)
+        else:
+            await bot.send_message(message.from_user.id, f'Привет {message.from_user.first_name}, ты в игре\n\'{str(find_game.info)}\'\nДата проведения {str(find_game.end_game)}', reply_markup=main_menu)
     else:
         if await sync_to_async(SuperUser.objects.filter(telegram_id=int(message.from_user.id)).first)():
         # это ПМ
             await bot.send_message(message.from_user.id,
-                                   f'Привет 🎅{message.from_user.first_name}',
+                                   f'Привет, {message.from_user.first_name}, ты супер администратор игры Санта 🎅\nМожешь при желании создать новую игру',
                                    reply_markup=main_menu_pm)
-
         else:
-            # это обычный юзер, но зашел повторно
-            await bot.send_message(message.from_user.id,
-                                   f'Привет ☃️{message.from_user.first_name}\nРад снова видеть тебя!!!',
-                                   reply_markup=main_menu)
+            # это обычный юзер и был ранее в боте, но зашел повторно,
+            # если по промо, то обновить его запись на эту промо
+            if find_game:
+                await sync_to_async(UserSantaGame.objects.filter(id=user_id.id).update)(my_game=find_game)
+                await bot.send_message(message.from_user.id,
+                                   f'Привет ☃️{message.from_user.first_name}\nРад снова видеть тебя, но теперь ты в игре Тайный-Санта!!!\n\'{str(find_game.info)}\'\nДата проведения {str(find_game.end_game)}, reply_markup=main_menu)
+            else:
+                await bot.send_message(message.from_user.id, f'Привет {message.from_user.first_name}, pад снова видеть тебя\nМожешь при желании создать новую игру и пригласить своих знакомых', reply_markup=main_menu)
 
 
 @router.message(F.text == "Основное меню")
@@ -80,9 +89,9 @@ async def user_block(message: Message):
 @router.message(F.text == "Ссылка-приглашение в игру")
 async def link_to_game(message: Message):
     bot_name = await bot(GetMe())
-    # тут получить код - ПРОМО
+    # тут получить код - ПРОМО из игры
     promo = 'Test'
-    await bot.send_message(message.from_user.id, f'Отправляйте ссылку-приглашение своим знакомым для участия в игре\nТайный Санта 🎅\n\nhttps://t.me/@{bot_name.username}?start={promo}', reply_markup=main_menu)
+    await bot.send_message(message.from_user.id, f'Отправляй ссылку-приглашение своим знакомым для участия в игре\nТайный Санта 🎅\n\nhttps://t.me/{bot_name.username}?start={promo}', reply_markup=main_menu)
 
 
 
