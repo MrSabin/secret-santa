@@ -49,7 +49,7 @@ class UserSantaGame(models.Model):
     telegram_id = models.PositiveBigIntegerField(verbose_name='Telegram ID')
     first_name = models.CharField(max_length=40, verbose_name='Имя', null=True)
     email = models.EmailField(blank=True)
-    is_game_start = models.BooleanField(default=False, null=True, blank=True)
+    is_game_start = models.BooleanField(default=False, null=True, blank=True, verbose_name='Создатель игры')
     partner = models.ForeignKey('self', on_delete=models.CASCADE, related_name='santa_game_partner', null=True, blank=True, verbose_name='Ваш партнер')
     my_wish = models.ForeignKey(WishList, on_delete=models.CASCADE, related_name='wish', null=True, blank=True, verbose_name='Пожелание')
     my_game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name='game', null=True, blank=True, verbose_name='Моя игра')

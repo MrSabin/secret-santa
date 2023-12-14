@@ -9,6 +9,8 @@ class UserSantaGameAdmin(admin.ModelAdmin):
         "telegram_id",
         "is_game_start",
     )
+    readonly_fields = ['is_game_start']
+
 
 
 @admin.register(Bonus)
