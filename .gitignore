@@ -1,6 +1,11 @@
 bundles/**
 node_modules/
 media/
+celerybeat-schedule.db
+dump.rdb
+.idea
+.DS_Store
+.editorconfig
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
