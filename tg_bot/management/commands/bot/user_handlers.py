@@ -1,21 +1,16 @@
+from datetime import datetime
+
 from aiogram import Router, F, Bot
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
-from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.filters.state import StatesGroup, State
 import logging
 from aiogram.methods.get_me import GetMe
-from aiogram.types import Message, CallbackQuery, FSInputFile, InputMediaPhoto
+from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
-from asgiref.sync import sync_to_async
 from environs import Env
-
-from secret_santa.settings import BASE_DIR
 from tg_bot.models import *
-# from tg_bot.management.commands.bot.user_keyboards import get_catalog_keyboard
 from tg_bot.management.commands.bot.user_menu import *
-from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,13 +27,21 @@ bot: Bot = Bot(token=env('TG_BOT_API'), parse_mode='HTML')
 router = Router()
 
 
-class GameState(StatesGroup):
-    user_name = State()
+class GameStateEmail(StatesGroup):
+    email_game = State()
+
+
+class GameStateName(StatesGroup):
+    name_game = State()
+
+
+class GameMyWish(StatesGroup):
+    my_wish = State()
 
 
 @router.message(Command(commands=["start"]))
 async def start_command_handler(message: Message):
-    User = await bot(GetMe())
+    # User = await bot(GetMe())
     promo_candidate = ''
     find_game = None
     user_id = await sync_to_async(UserSantaGame.objects.filter(telegram_id=int(message.from_user.id)).first)()
@@ -55,8 +58,8 @@ async def start_command_handler(message: Message):
         else:
             await bot.send_message(message.from_user.id, f'Привет {message.from_user.first_name}, ты в игре\n\'{str(find_game.info)}\'\nДата проведения {str(find_game.end_game)}', reply_markup=main_menu)
     else:
-        if await sync_to_async(SuperUser.objects.filter(telegram_id=int(message.from_user.id)).first)():
-        # это ПМ
+        if await sync_to_async(Assistant.objects.filter(telegram_id=int(message.from_user.id)).first)():
+        # это Асистент игр
             await bot.send_message(message.from_user.id,
                                    f'Привет, {message.from_user.first_name}, ты супер администратор игры Санта 🎅\nМожешь при желании создать новую игру',
                                    reply_markup=main_menu_pm)
@@ -65,8 +68,7 @@ async def start_command_handler(message: Message):
             # если по промо, то обновить его запись на эту промо
             if find_game:
                 await sync_to_async(UserSantaGame.objects.filter(id=user_id.id).update)(my_game=find_game)
-                await bot.send_message(message.from_user.id,
-                                   f'Привет ☃️{message.from_user.first_name}\nРад снова видеть тебя, но теперь ты в игре Тайный-Санта!!!\n\'{str(find_game.info)}\'\nДата проведения {str(find_game.end_game)}, reply_markup=main_menu)
+                await bot.send_message(message.from_user.id, f'Привет ☃️{message.from_user.first_name}\nРад снова видеть тебя, но теперь ты в игре Тайный-Санта!!!\n\'{str(find_game.info)}\'\nДата проведения {str(find_game.end_game)}', reply_markup=main_menu)
             else:
                 await bot.send_message(message.from_user.id, f'Привет {message.from_user.first_name}, pад снова видеть тебя\nМожешь при желании создать новую игру и пригласить своих знакомых', reply_markup=main_menu)
 
@@ -81,18 +83,105 @@ async def run_game(message: Message):
     await bot.send_message(message.from_user.id, F.text, reply_markup=main_menu)
 
 
+@router.message(F.text == "Создать игру")
+async def run_game(message: Message):
+    await bot.send_message(message.from_user.id, 'Укажите бюджет игры',
+                               reply_markup=await get_budget())
+
+@router.callback_query(F.data.startswith('bonus_'))
+# @router.callback_query(F.data.startswith('bonus_'))
+async def get_bonus_handler(callback: CallbackQuery):
+    bonus_id = callback.data.split('_')[-1]
+    user_id = await sync_to_async(UserSantaGame.objects.filter(telegram_id=int(callback.from_user.id)).first)()
+    if user_id.is_game_start:
+        await bot.send_message(callback.from_user.id,
+                               f"У вас игра Тайный-Санта - уже создана!", reply_markup=main_menu)
+    else:
+        bot_name = await bot(GetMe())
+        budget = await sync_to_async(Bonus.objects.filter(id=bonus_id).first)()
+        new_game = Game(bonus=budget, info='Игра Тайный-Санта 🎅', end_game=datetime(year=datetime.now().year, month=12, day=30))
+        await sync_to_async(new_game.save)()
+        game_promo_key = new_game.promo_key
+        await sync_to_async(UserSantaGame.objects.filter(id=user_id.id).update)(my_game=new_game, is_game_start=True)
+        await bot.send_message(callback.from_user.id, f"Ваша игра Тайный-Санта-создана, ссылка для участия\nhttps://t.me/{bot_name.username}?start={game_promo_key}", reply_markup=main_menu)
+
+
 @router.message(F.text == "Заблокировать пользователя")
 async def user_block(message: Message):
     await bot.send_message(message.from_user.id, F.text, reply_markup=main_menu)
+
+@router.message(F.text == "Профиль")
+async def user_block(message: Message):
+    await bot.send_message(message.from_user.id, "Дополнительные настройки", reply_markup=menu_profile)
+
+@router.message(Command("Отмена"))
+@router.message(F.text.casefold() == "отмена")
+async def cancel_handler(message: Message, state: FSMContext) -> None:
+    current_state = await state.get_state()
+    if current_state is None:
+        return
+    logging.info("Cancelling state %r", current_state)
+    await state.clear()
+    await message.answer("Отмена действий", reply_markup=menu_profile,)
+
+@router.message(F.text == "Моё желание")
+async def user_block(message: Message, state: FSMContext):
+    await state.set_state(GameMyWish.my_wish)
+    await message.answer("Запишите ваше желание😉!\nИ кто знает! Может оно исполниться", reply_markup=cancel_menu)
+
+@router.message(GameMyWish.my_wish)
+async def process_my_wish(message: Message, state: FSMContext) -> None:
+        data = await state.update_data(my_wish=message.text)
+        await state.clear()
+        my_wish = data.get("my_wish", "<something unexpected>")
+        current_user = await sync_to_async(UserSantaGame.objects.filter(telegram_id=int(message.from_user.id)).first)()
+        await sync_to_async(UserSantaGame.objects.filter(id=current_user.id).update)(my_wish=my_wish)
+        await bot.send_message(message.from_user.id, f'Санта обязательно его прочитает 🎅 ', reply_markup=main_menu)
+
+
+@router.message(F.text == "Имя игры")
+async def user_block(message: Message, state: FSMContext):
+    await state.set_state(GameStateName.name_game)
+    await message.answer("Задайте наименование вашей игры !", reply_markup=cancel_menu)
+
+@router.message(GameStateName.name_game)
+async def process_email(message: Message, state: FSMContext) -> None:
+        data = await state.update_data(name_game=message.text)
+        await state.clear()
+        name_game = data.get("name_game", "<something unexpected>")
+        current_user = await sync_to_async(UserSantaGame.objects.filter(telegram_id=int(message.from_user.id)).first)()
+        if current_user.is_game_start:
+            await sync_to_async(Game.objects.filter(id=current_user.my_game_id).update)(info=name_game)
+            await bot.send_message(message.from_user.id, f'Успешно 🤝 ', reply_markup=main_menu)
+        else:
+            await bot.send_message(message.from_user.id, f'Нет активных игр, создайте новую! или используйте ПРОМО код', reply_markup=main_menu)
+
+
+@router.message(F.text == "Указать почту")
+async def user_block(message: Message, state: FSMContext):
+    await state.set_state(GameStateEmail.email_game)
+    await message.answer("Укажите вашу почту!", reply_markup=cancel_menu)
+
+
+@router.message(GameStateEmail.email_game)
+async def process_email(message: Message, state: FSMContext) -> None:
+        data = await state.update_data(email_game=message.text)
+        await state.clear()
+        email = data.get("email_game", "<something unexpected>")
+        current_user = await sync_to_async(UserSantaGame.objects.filter(telegram_id=int(message.from_user.id)).first)()
+        await sync_to_async(UserSantaGame.objects.filter(id=current_user.id).update)(email=email)
+        await bot.send_message(message.from_user.id, f'Успешно 🤝 ', reply_markup=main_menu)
 
 
 @router.message(F.text == "Ссылка-приглашение в игру")
 async def link_to_game(message: Message):
     bot_name = await bot(GetMe())
-    # тут получить код - ПРОМО из игры
-    promo = 'Test'
-    await bot.send_message(message.from_user.id, f'Отправляй ссылку-приглашение своим знакомым для участия в игре\nТайный Санта 🎅\n\nhttps://t.me/{bot_name.username}?start={promo}', reply_markup=main_menu)
-
+    user_id = await sync_to_async(UserSantaGame.objects.filter(telegram_id=int(message.from_user.id)).first)()
+    promo = await sync_to_async(Game.objects.filter(id=user_id.my_game_id).first)()
+    if promo:
+        await bot.send_message(message.from_user.id, f'Отправляй ссылку-приглашение своим знакомым для участия в игре\nТайный Санта 🎅\n\nhttps://t.me/{bot_name.username}?start={str(promo.promo_key)}', reply_markup=main_menu)
+    else:
+        await bot.send_message(message.from_user.id, f'Активной игры не существует‼️\nВы можете создать новую...', reply_markup=main_menu)
 
 
 @router.message(F.text == "Оповестить участников")
@@ -104,9 +193,22 @@ async def show_main_menu(message: Message):
             await bot.send_message(message.from_user.id, f'Пользователь телеграмм {str(user.telegram_id)} не существует')
 
 
+@router.message(F.text == "Просмотр пожеланий")
+async def view_wish(message: Message):
+    current_user = await sync_to_async(UserSantaGame.objects.filter(telegram_id=int(message.from_user.id)).first)()
+    if current_user.is_game_start:
+        game = await sync_to_async(Game.objects.filter(id=current_user.my_game_id).first)()
+        wishes = []
+        wishes.append(f'Списки желаний участников игры Тайный Санта\n')
+        async for wish in UserSantaGame.objects.all():
+            if wish.my_wish:
+                wishes.append(f'{wish.my_wish}')
+        wish_list = '\n'.join(wishes)
+        await message.answer(wish_list)
+    else:
+        await message.answer('К сожалению, список желаний участников игры вам не доступен...')
+
+
 @router.message(F.text == "Об игре Тайный Санта...")
 async def create_order(message: Message):
     await message.answer('https://dvmn.org/')
-
-
-
