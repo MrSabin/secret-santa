@@ -25,7 +25,9 @@ class Game(models.Model):
                             null=True,
                             blank=True)
     end_game = models.DateField(help_text="Дата окончания игры",
-                                verbose_name='Дата окончания игры')
+                                verbose_name='Дата окончания игры',
+                                null=True,
+                                blank=True)
     promo_key = models.CharField(max_length=6,
                                  db_index=True,
                                  verbose_name='ПРОМО',
