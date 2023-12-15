@@ -52,7 +52,7 @@ class UserSantaGame(models.Model):
     is_game_start = models.BooleanField(default=False, null=True, blank=True)
     partner = models.ForeignKey('self', on_delete=models.CASCADE, related_name='santa_game_partner', null=True, blank=True, verbose_name='Ваш партнер')
     my_wish = models.ForeignKey(WishList, on_delete=models.CASCADE, related_name='wish', null=True, blank=True, verbose_name='Пожелание')
-    my_game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name='game', null=True, blank=True, verbose_name='Моя игра')
+    my_game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name='users', null=True, blank=True, verbose_name='Моя игра')
 
     def __str__(self):
         return f"{self.first_name} - {self.telegram_id}"
