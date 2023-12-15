@@ -20,7 +20,7 @@ class Bonus(models.Model):
 class Game(models.Model):
     bonus = models.ForeignKey(Bonus,
                               on_delete=models.CASCADE,
-                              related_name="user_bonus")
+                              related_name="games")
     info = models.TextField(verbose_name='Описание игры',
                             null=True,
                             blank=True)
