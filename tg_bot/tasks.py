@@ -2,10 +2,12 @@ import collections
 from datetime import date
 
 from celery import shared_task
+from django.core.mail import send_mail
 from environs import Env
 from telebot import TeleBot
 
 from .models import UserSantaGame, Game
+from secret_santa.settings import EMAIL_HOST_USER
 
 env = Env()
 bot = TeleBot(token=env.str('TG_BOT_API'), threaded=False)
@@ -29,17 +31,34 @@ def start_game():
                 if number + 1 < len(users):
                     user.partner = users[number + 1]
                     user.save()
-                    send_notification(users[number + 1])
+                    send_notification(user, users[number + 1])
+                    if user.email:
+                        send_email(user)
                 else:
                     user.partner = users[0]
                     user.save()
-                    send_notification(users[0])
+                    send_notification(user, users[0])
+                    if user.email:
+                        send_email(user)
 
 
 @shared_task
-def send_notification(user):
-    message = f'Вы дарите подарок игроку {user.first_name}, ' \
-              f'данный игрок желает {user.my_wish}'
-    print('до отправки')
-    bot.send_message(user.telegram_id, message)
-    print('после отправки')
+def send_notification(sender, receiver):
+    message = f'Вы дарите подарок игроку {receiver.first_name}, ' \
+              f'данный игрок желает {receiver.my_wish}'
+    bot.send_message(sender.telegram_id, message)
+
+
+@shared_task
+def send_email(user):
+    subject = 'Уведомление о результатах прошедшей жребьевки'
+    sender = EMAIL_HOST_USER
+    emails = [user.partner.email]
+    send_mail(
+        subject=subject,
+        message=f'Вы дарите подарок игроку {user.partner.first_name} '
+                f'данный игрок желает {user.partner.my_wish}',
+        from_email=sender,
+        recipient_list=emails
+    )
+    return emails
