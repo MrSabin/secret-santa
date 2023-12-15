@@ -34,16 +34,6 @@ class Game(models.Model):
         verbose_name_plural = "Игры"
 
 
-class WishList(models.Model):
-    title = models.CharField(max_length=200, verbose_name='Лист пожеланий', null=True, blank=True)
-
-    def __str__(self):
-        return f"{self.title}"
-
-    class Meta:
-        verbose_name = "Лист желаний"
-        verbose_name_plural = "Листы желаний"
-
 
 class UserSantaGame(models.Model):
     telegram_id = models.PositiveBigIntegerField(verbose_name='Telegram ID')
@@ -51,7 +41,7 @@ class UserSantaGame(models.Model):
     email = models.EmailField(blank=True)
     is_game_start = models.BooleanField(default=False, null=True, blank=True, verbose_name='Создатель игры')
     partner = models.ForeignKey('self', on_delete=models.CASCADE, related_name='santa_game_partner', null=True, blank=True, verbose_name='Ваш партнер')
-    my_wish = models.ForeignKey(WishList, on_delete=models.CASCADE, related_name='wish', null=True, blank=True, verbose_name='Пожелание')
+    my_wish = models.TextField(verbose_name='Пожелание', blank=True, null=True)
     my_game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name='game', null=True, blank=True, verbose_name='Моя игра')
 
     def __str__(self):
@@ -62,7 +52,7 @@ class UserSantaGame(models.Model):
         verbose_name_plural = "Клиенты"
 
 
-class SuperUser(UserSantaGame):
+class Assistant(UserSantaGame):
     info = models.TextField(verbose_name='Дополнительная информация', null=True, blank=True)
 
     def __str__(self):
