@@ -7,7 +7,9 @@ class UserSantaGameAdmin(admin.ModelAdmin):
     list_display = (
         "first_name",
         "telegram_id",
+        "my_wish",
         "is_game_start",
+        "id",
     )
     readonly_fields = ['is_game_start']
 
@@ -20,20 +22,16 @@ class BonusAdmin(admin.ModelAdmin):
     )
 
 
-@admin.register(SuperUser)
-class SuperUserAdmin(admin.ModelAdmin):
+@admin.register(Assistant)
+class AssistantAdmin(admin.ModelAdmin):
     list_display = (
         "first_name",
         "telegram_id",
     )
 
 
-@admin.register(WishList)
-class WishListAdmin(admin.ModelAdmin):
-    list_display = ['title']
-
 @admin.register(Game)
 class GameAdmin(admin.ModelAdmin):
-    list_display = ['info', 'end_game', 'promo_key']
-    readonly_fields = ['promo_key']
+    list_display = ['info', 'end_game', 'promo_key', 'id']
+    readonly_fields = ['promo_key', 'id']
 
