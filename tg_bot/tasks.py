@@ -1,7 +1,6 @@
 import collections
 from datetime import date
 
-from aiogram import Bot
 from celery import shared_task
 from environs import Env
 from telebot import TeleBot
