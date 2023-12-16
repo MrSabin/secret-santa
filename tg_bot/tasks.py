@@ -1,6 +1,5 @@
 import collections
 import json
-import pickle
 from datetime import date
 
 from celery import shared_task

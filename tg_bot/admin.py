@@ -52,7 +52,6 @@ class GameAdmin(admin.ModelAdmin):
         promos = [game.promo_key for game in
                   Game.objects.all()]
         promos_serialized = json.dumps(promos)
-        print(promos_serialized)
         start_game_task.delay(promos_serialized)
         self.model.objects.all().update(end_game=None)
         self.message_user(request, 'Жребьевка успешно проведена')
