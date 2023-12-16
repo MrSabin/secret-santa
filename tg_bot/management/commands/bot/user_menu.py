@@ -9,7 +9,7 @@ kb_choise_main_menu = [
     [types.KeyboardButton(text="Профиль")],
     [types.KeyboardButton(text="Моё желание")],
     [types.KeyboardButton(text="Ссылка-приглашение в игру")],
-    [types.KeyboardButton(text="Об игре Тайный Санта...")]
+    [types.KeyboardButton(text="Про игру Тайный Санта 🎅")]
 ]
 main_menu = types.ReplyKeyboardMarkup(
     keyboard=kb_choise_main_menu,
@@ -18,6 +18,7 @@ main_menu = types.ReplyKeyboardMarkup(
 kb_choise_menu_choise_profile = [
     [types.KeyboardButton(text="Указать почту")],
     [types.KeyboardButton(text="Имя игры")],
+    [types.KeyboardButton(text="Задать свою дату")],
     [types.KeyboardButton(text="Основное меню")],
 
 ]

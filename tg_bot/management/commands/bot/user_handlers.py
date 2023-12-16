@@ -1,5 +1,4 @@
 from datetime import datetime
-
 from aiogram import Router, F, Bot
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
@@ -11,6 +10,7 @@ from aiogram.filters import Command
 from environs import Env
 from tg_bot.models import *
 from tg_bot.management.commands.bot.user_menu import *
+import dateutil.parser as dp
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,6 +30,9 @@ router = Router()
 class GameStateEmail(StatesGroup):
     email_game = State()
 
+class GameStateEmail(StatesGroup):
+    email_game = State()
+
 
 class GameStateName(StatesGroup):
     name_game = State()
@@ -39,9 +42,12 @@ class GameMyWish(StatesGroup):
     my_wish = State()
 
 
+class SetDate(StatesGroup):
+    date = State()
+
+
 @router.message(Command(commands=["start"]))
 async def start_command_handler(message: Message):
-    # User = await bot(GetMe())
     promo_candidate = ''
     find_game = None
     user_id = await sync_to_async(UserSantaGame.objects.filter(telegram_id=int(message.from_user.id)).first)()
@@ -209,6 +215,45 @@ async def view_wish(message: Message):
         await message.answer('К сожалению, список желаний участников игры вам не доступен...')
 
 
-@router.message(F.text == "Об игре Тайный Санта...")
-async def create_order(message: Message):
-    await message.answer('https://dvmn.org/')
+@router.message(F.text == "Про игру Тайный Санта 🎅")
+async def about_game(message: Message):
+    current_user = await sync_to_async(UserSantaGame.objects.filter(telegram_id=int(message.from_user.id)).first)()
+    current_game = await sync_to_async(Game.objects.filter(id=current_user.my_game_id).first)()
+    if(current_game):
+        bonus_game = await sync_to_async(Bonus.objects.filter(id=current_game.bonus_id).first)()
+        bonus_dict = {}
+        for tuple in list(bonus_game.BONUS_CHOICES):
+            bonus_dict[tuple[0]] = tuple[1]
+        info = f'😉 Игра Тайный Санта 🎅\n\n'\
+            f'{current_game.info}\n'\
+            f'Дата проведения игры {current_game.end_game}\n'\
+            f'ПРОМО-КЛЮЧ {current_game.promo_key}\n'\
+            f'Бюджет игры {bonus_dict[bonus_game.game_bonus]}\n'\
+            f'Участник {current_user.first_name}\n'\
+            f'Почта для оповещения {current_user.email}\n'\
+            f'Вы Создатель игры ? -> {current_user.is_game_start}\n'
+        await message.answer(info)
+    else:
+        await message.answer("Необходимо создать игру или активировать её по промокоду...")
+
+
+@router.message(F.text =='Задать свою дату')
+async def set_data(message: Message, state: FSMContext):
+    await state.set_state(SetDate.date)
+    await message.answer("Укажите дату проведения игры вида ДД.ММ.ГГГГ !", reply_markup=cancel_menu)
+
+@router.message(SetDate.date)
+async def process_email(message: Message, state: FSMContext) -> None:
+        data = await state.update_data(date=message.text)
+        await state.clear()
+        new_date = data.get("date", "<something unexpected>")
+        try:
+            new_date = dp.parse(new_date)
+            current_user = await sync_to_async(UserSantaGame.objects.filter(telegram_id=int(message.from_user.id)).first)()
+            if current_user.is_game_start:
+                await sync_to_async(Game.objects.filter(id=current_user.my_game_id).update)(end_game=new_date)
+                await bot.send_message(message.from_user.id, f'Успешно 🤝 ', reply_markup=main_menu)
+            else:
+                await bot.send_message(message.from_user.id, f'Только создатель игры может менять дату 🛑', reply_markup=main_menu)
+        except ValueError:
+            await bot.send_message(message.from_user.id, f'Не верно задана дата 🛑', reply_markup=main_menu)
