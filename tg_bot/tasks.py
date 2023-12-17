@@ -1,4 +1,5 @@
 import collections
+import json
 from datetime import date
 
 from celery import shared_task
@@ -14,11 +15,8 @@ bot = TeleBot(token=env.str('TG_BOT_API'), threaded=False)
 
 
 @shared_task
-def start_game():
-
-    promos = [game.promo_key for game in
-              Game.objects.filter(end_game=date.today())]
-
+def start_game_task(promos):
+    promos = json.loads(promos)
     if promos:
         users_by_promo = collections.defaultdict(list)
         for promo in promos:
@@ -62,3 +60,11 @@ def send_email(user):
         recipient_list=emails
     )
     return emails
+
+
+@shared_task
+def start_game():
+    promos = [game.promo_key for game in
+              Game.objects.filter(end_game=date.today())]
+    promos_serialized = json.dumps(promos)
+    start_game_task.delay(promos_serialized)
