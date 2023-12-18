@@ -5,7 +5,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import KeyboardBuilder
 
 kb_choise_main_menu = [
-    # [types.KeyboardButton(text="Создать игру")],
+    [types.KeyboardButton(text="Создать игру")],
     [types.KeyboardButton(text="Профиль")],
     [types.KeyboardButton(text="Моё желание")],
     [types.KeyboardButton(text="Ссылка-приглашение в игру")],
