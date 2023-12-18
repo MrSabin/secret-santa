@@ -1,0 +1,12 @@
+[Unit]
+Description=Secret Santa bot
+After=redis.service
+Requires=redis.service
+
+[Service]
+WorkingDirectory=/opt/secret-santa
+ExecStart=/opt/secret-santa/.venv/bin/python3 /opt/secret-santa/manage.py runbot
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

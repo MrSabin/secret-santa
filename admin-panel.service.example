@@ -1,0 +1,10 @@
+[Unit]
+Description=Secret Santa admin interface
+
+[Service]
+WorkingDirectory=/opt/secret-santa/
+ExecStart=/opt/secret-santa/.venv/bin/gunicorn -w 5 -b 127.0.0.1:8001 secret_santa.wsgi:application
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
